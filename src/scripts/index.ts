@@ -14,6 +14,7 @@ import { quotes } from './features/quotes.ts'
 import { pomodoro } from './features/pomodoro.ts'
 import { notes } from './features/notes.ts'
 import { clock } from './features/clock/index.ts'
+import { homelabAddon } from './addons/homelab/index.ts'
 import './features/contextmenu.ts'
 
 import { displayInterface, onInterfaceDisplay } from './shared/display.ts'
@@ -88,6 +89,7 @@ async function startup(): Promise<void> {
     hideElements(sync.hide)
     backgroundsInit(sync, local, true)
     quickLinks({ sync, local })
+    homelabAddon()
     synchronization(local)
     settingsInit(sync, local)
     pageControl({ width: sync.pagewidth, gap: sync.pagegap })

@@ -50,5 +50,8 @@
 @import './features/csseditor.css';
 @import './features/supporters.css';
 
+/* Optional fork add-ons */
+@import './addons/homelab.css';
+
 /* <!> Responsive must be imported last */
 @import './_responsive.css';
