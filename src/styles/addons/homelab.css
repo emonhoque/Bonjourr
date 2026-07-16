@@ -296,6 +296,32 @@
     margin-top: 2rem;
 }
 
+/*
+ * Bonjourr's generic form styles are for compact inline inputs and constrain
+ * forms to 155px. This add-on uses a form as the full settings card, so keep
+ * its layout aligned with the other full-width settings sections.
+ */
+#homelab-addon-form {
+    width: auto;
+}
+
+#homelab-addon-form > #homelab-addon-options {
+    display: block;
+    width: auto;
+}
+
+#homelab-addon-form .homelab-settings-actions {
+    width: auto;
+}
+
+#homelab-addon-form .homelab-settings-actions .param-btn {
+    width: auto;
+    max-width: none;
+    padding: 0 1em;
+    opacity: 1;
+    visibility: visible;
+}
+
 .homelab-settings-intro,
 .homelab-settings-help {
     color: var(--color-placeholder);
