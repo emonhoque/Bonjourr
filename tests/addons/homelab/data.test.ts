@@ -62,6 +62,12 @@ Deno.test('homelab status payload is normalized for safe rendering', () => {
                 href: 'https://homepage.home.arpa/backups',
             },
         ],
+        updates: {
+            available: 3,
+            checkedAt: '2026-07-14T11:55:00Z',
+            href: 'http://wud.homelab.home.arpa',
+            reviewHref: 'https://github.com/emonhoque/Homelab/issues/12',
+        },
     })
 
     assertEquals(status, {
@@ -78,7 +84,23 @@ Deno.test('homelab status payload is normalized for safe rendering', () => {
                 href: 'https://homepage.home.arpa/backups',
             },
         ],
+        updates: {
+            available: 3,
+            checkedAt: '2026-07-14T11:55:00.000Z',
+            href: 'http://wud.homelab.home.arpa/',
+            reviewHref: 'https://github.com/emonhoque/Homelab/issues/12',
+        },
     })
+})
+
+Deno.test('update availability remains optional', () => {
+    const status = parseHomelabStatus({
+        overall: 'healthy',
+        failures: 0,
+        checks: [],
+    })
+
+    assertEquals(status.updates, undefined)
 })
 
 Deno.test('homelab status rejects malformed states', () => {
@@ -92,6 +114,45 @@ Deno.test('homelab status rejects malformed states', () => {
         () => parseHomelabStatus({ overall: 'healthy', checks: [{ state: 'down' }] }),
         Error,
         'valid state',
+    )
+})
+
+Deno.test('homelab status rejects malformed update metadata', () => {
+    assertThrows(
+        () =>
+            parseHomelabStatus({
+                overall: 'healthy',
+                checks: [],
+                updates: { available: -1, href: 'http://wud.home.arpa' },
+            }),
+        Error,
+        'integer from 0 through 1000',
+    )
+
+    assertThrows(
+        () =>
+            parseHomelabStatus({
+                overall: 'healthy',
+                checks: [],
+                updates: { available: 1, href: 'https://user:secret@wud.home.arpa' },
+            }),
+        Error,
+        'without credentials',
+    )
+
+    assertThrows(
+        () =>
+            parseHomelabStatus({
+                overall: 'healthy',
+                checks: [],
+                updates: {
+                    available: 1,
+                    href: 'http://wud.home.arpa',
+                    reviewHref: 'javascript:alert(1)',
+                },
+            }),
+        Error,
+        'reviewHref',
     )
 })
 

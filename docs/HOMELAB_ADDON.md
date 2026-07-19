@@ -8,11 +8,12 @@ The add-on is intended for a desktop browser extension. A separate Homepage PWA 
 
 - The new tab page and configured shortcuts render from extension files even when the homelab is down.
 - A failed status request cannot delay or break Bonjourr startup.
-- A single read-only JSON endpoint summarizes the homelab. The extension does not contact Sonarr, Radarr, Docker, or other services individually.
+- A single read-only JSON endpoint summarizes the homelab. The extension does not contact Sonarr, Radarr, Docker, WUD, GitHub, or other services individually.
 - No API keys, cookies, Basic Auth credentials, or service control actions are supported.
 - The last valid response is cached locally and always marked as stale when the endpoint cannot be reached.
 - Polling is optional, pauses in hidden tabs, and defaults to one short request per new tab.
 - Add-on settings use a separate storage key and separate JSON import/export. Bonjourr's normal settings schema stays untouched.
+- Available updates are informational and never change the health indicator by themselves.
 
 ## Upstream-friendly layout
 
@@ -21,15 +22,16 @@ All implementation files live under:
 ```text
 src/scripts/addons/homelab/
 src/styles/addons/homelab.css
+src/styles/addons/homelab-updates.css
 tests/addons/homelab/
 ```
 
 The only Bonjourr core touchpoints are:
 
 1. One import and startup call in `src/scripts/index.ts`.
-2. One CSS import in `src/styles/style.css`.
+2. The add-on stylesheet imports in `src/styles/style.css`.
 
-The settings section is inserted through Bonjourr's existing settings-load callback. No core settings types, defaults, compatibility filters, translations, or HTML templates are changed.
+The settings section is inserted through Bonjourr's existing settings-load callback. No core settings types, defaults, compatibility filters, translations, manifests, or HTML templates are changed.
 
 To bring in future Bonjourr updates:
 
@@ -39,7 +41,7 @@ git fetch upstream
 git merge upstream/master
 ```
 
-Most updates should merge without touching the add-on. If either core touchpoint conflicts, keep the homelab import, the `homelabAddon()` call, and the add-on CSS import after resolving the upstream file.
+Most updates should merge without touching the add-on. If either core touchpoint conflicts, keep the homelab import, the `homelabAddon()` call, and both add-on CSS imports after resolving the upstream file.
 
 ## Build and load in Edge
 
@@ -81,7 +83,7 @@ Return JSON no larger than 64 KiB:
 
 ```json
 {
-    "generatedAt": "2026-07-14T20:15:00Z",
+    "generatedAt": "2026-07-19T12:00:00Z",
     "overall": "degraded",
     "failures": 1,
     "checks": [
@@ -97,7 +99,13 @@ Return JSON no larger than 64 KiB:
             "message": "Backup is overdue",
             "href": "https://homepage.home.arpa/backups"
         }
-    ]
+    ],
+    "updates": {
+        "available": 6,
+        "checkedAt": "2026-07-19T11:55:00Z",
+        "href": "http://wud.homelab.home.arpa",
+        "reviewHref": "https://github.com/emonhoque/Homelab/issues/123"
+    }
 }
 ```
 
@@ -105,8 +113,13 @@ Allowed values are:
 
 - `overall`: `healthy`, `degraded`, or `unhealthy`
 - `checks[].state`: `healthy`, `warning`, `failed`, or `unknown`
+- `updates.available`: an integer from 0 through 1000
 
-`generatedAt` is optional but recommended. `failures` is optional and is derived from failed checks when omitted. `message` and `href` are optional. Invalid payloads are treated as endpoint failures and never rendered as HTML.
+`generatedAt` is optional but recommended. `failures` is optional and is derived from failed checks when omitted. Check `message` and `href` are optional.
+
+The entire `updates` object is optional. When present, it requires a safe HTTP or HTTPS `href`. `checkedAt` and `reviewHref` are optional. Credentialed, non-HTTP, malformed, or oversized values cause the response to be rejected rather than partially trusted.
+
+When `updates.available` is greater than zero, Bonjourr renders a separate informational line. The main link opens WUD. A **Review** link appears only when `reviewHref` is present, normally after Renovate has created its Dependency Dashboard. Zero updates hide the line. Update availability does not increase `failures`, alter `overall`, or appear in the failure list.
 
 ## CORS and permissions
 
@@ -119,14 +132,15 @@ Content-Type: application/json
 
 Only use `*` for a sanitized, read-only health summary that contains no secrets. The client always sends requests with credentials omitted, disables HTTP caching, sends no referrer, and applies a short timeout.
 
-Keep detailed logs, service credentials, container controls, and restart actions in Homepage, Portainer, or the watchdog. The glance endpoint should expose only the minimum state needed for the new tab summary.
+Keep detailed logs, service credentials, container controls, raw update data, and restart actions in Homepage, WUD, or the watchdog. The glance endpoint should expose only the minimum state needed for the new tab summary.
 
 ## Failure behavior
 
 - Endpoint reachable and healthy: a quiet green status appears.
 - Endpoint reachable with failures: the issue count and up to five affected checks appear.
-- Endpoint returns old data: the panel marks it as stale.
-- Endpoint times out, fails CORS, or is offline: the panel says **Homelab unavailable** and shows when it last succeeded.
+- Updates available: an independent update line appears without degrading health.
+- Endpoint returns old data: the panel and any cached update line are marked as stale.
+- Endpoint times out, fails CORS, or is offline: the panel says **Homelab unavailable** and shows when it last succeeded. A cached update count may remain visible as stale.
 - Entire homelab is offline: Bonjourr, local configuration, shortcuts, clock, backgrounds, and other extension features still load. Online services such as weather continue working if the wider internet is available.
 
 ## Custom CSS

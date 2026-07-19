@@ -52,6 +52,7 @@
 
 /* Optional fork add-ons */
 @import './addons/homelab.css';
+@import './addons/homelab-updates.css';
 
 /* <!> Responsive must be imported last */
 @import './_responsive.css';

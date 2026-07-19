@@ -36,11 +36,19 @@ export interface HomelabCheck {
     href?: string
 }
 
+export interface HomelabUpdates {
+    available: number
+    checkedAt?: string
+    href: string
+    reviewHref?: string
+}
+
 export interface HomelabStatus {
     generatedAt?: string
     overall: HomelabOverallState
     failures: number
     checks: HomelabCheck[]
+    updates?: HomelabUpdates
 }
 
 export interface HomelabStatusCache {

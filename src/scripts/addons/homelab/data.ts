@@ -13,6 +13,7 @@ import {
 const POSITIONS: HomelabPosition[] = ['top-left', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right']
 const CHECK_STATES: HomelabCheckState[] = ['healthy', 'warning', 'failed', 'unknown']
 const OVERALL_STATES: HomelabOverallState[] = ['healthy', 'degraded', 'unhealthy']
+const MAX_AVAILABLE_UPDATES = 1000
 
 export const DEFAULT_HOMELAB_CONFIG: HomelabConfig = {
     version: HOMELAB_CONFIG_VERSION,
@@ -129,12 +130,14 @@ export function parseHomelabStatus(value: unknown): HomelabStatus {
     const generatedAt = parseTimestamp(value.generatedAt)
     const derivedFailures = checks.filter(({ state }) => state === 'failed').length
     const failures = clampInteger(value.failures, 0, 100, derivedFailures)
+    const updates = parseUpdates(value.updates)
 
     return {
         ...(generatedAt ? { generatedAt } : {}),
         overall: value.overall,
         failures,
         checks,
+        ...(updates ? { updates } : {}),
     }
 }
 
@@ -176,6 +179,47 @@ function parseCheck(value: unknown, index: number): HomelabCheck {
         state: value.state,
         ...(message ? { message } : {}),
         ...(href ? { href } : {}),
+    }
+}
+
+function parseUpdates(value: unknown): HomelabStatus['updates'] | undefined {
+    if (value === undefined) {
+        return undefined
+    }
+    if (!isRecord(value)) {
+        throw new Error('The updates field must be an object.')
+    }
+
+    const available = value.available
+    if (
+        typeof available !== 'number' ||
+        !Number.isInteger(available) ||
+        available < 0 ||
+        available > MAX_AVAILABLE_UPDATES
+    ) {
+        throw new Error(`Updates available must be an integer from 0 through ${MAX_AVAILABLE_UPDATES}.`)
+    }
+
+    const href = parseHttpUrl(value.href)
+    if (!href) {
+        throw new Error('Updates href must be a complete http:// or https:// URL without credentials.')
+    }
+
+    const checkedAt = value.checkedAt === undefined ? undefined : parseTimestamp(value.checkedAt)
+    if (value.checkedAt !== undefined && !checkedAt) {
+        throw new Error('Updates checkedAt must be a valid timestamp.')
+    }
+
+    const reviewHref = value.reviewHref === undefined ? '' : parseHttpUrl(value.reviewHref)
+    if (value.reviewHref !== undefined && !reviewHref) {
+        throw new Error('Updates reviewHref must be a complete http:// or https:// URL without credentials.')
+    }
+
+    return {
+        available,
+        ...(checkedAt ? { checkedAt } : {}),
+        href,
+        ...(reviewHref ? { reviewHref } : {}),
     }
 }
 
