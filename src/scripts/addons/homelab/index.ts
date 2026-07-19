@@ -20,6 +20,10 @@ interface HomelabView {
     meta: HTMLTimeElement
     refresh: HTMLButtonElement
     failures: HTMLUListElement
+    updates: HTMLElement
+    updateLink: HTMLAnchorElement
+    updateMessage: HTMLElement
+    updateReview: HTMLAnchorElement
     links: HTMLElement
 }
 
@@ -83,7 +87,7 @@ function createController(view: HomelabView): {
             return
         }
 
-        renderChecking(view, cache)
+        renderChecking(view, cache, config)
         await refresh()
     }
 
@@ -95,7 +99,7 @@ function createController(view: HomelabView): {
         const currentConfigGeneration = configGeneration
         const currentRequestGeneration = ++requestGeneration
         lastRequestAt = Date.now()
-        renderChecking(view, cache)
+        renderChecking(view, cache, config)
 
         try {
             const status = await fetchHomelabStatus(config.statusUrl, config.requestTimeoutMs)
@@ -117,7 +121,7 @@ function createController(view: HomelabView): {
                 return
             }
 
-            renderUnavailable(view, cache)
+            renderUnavailable(view, cache, config)
             console.info('The homelab status endpoint is unavailable.', error)
         } finally {
             if (currentConfigGeneration === configGeneration && currentRequestGeneration === requestGeneration) {
@@ -192,6 +196,13 @@ function createView(): HomelabView {
             </button>
         </div>
         <ul id="homelab-addon-failures" hidden></ul>
+        <div id="homelab-addon-updates" class="glass" hidden>
+            <a id="homelab-addon-updates-link">
+                <span id="homelab-addon-updates-icon" aria-hidden="true">↻</span>
+                <span id="homelab-addon-updates-message"></span>
+            </a>
+            <a id="homelab-addon-updates-review" hidden>Review</a>
+        </div>
         <nav id="homelab-addon-links" aria-label="Homelab quick links"></nav>
     `
     document.body.append(root)
@@ -205,6 +216,10 @@ function createView(): HomelabView {
         meta: element<HTMLTimeElement>('homelab-addon-meta'),
         refresh: element<HTMLButtonElement>('homelab-addon-refresh'),
         failures: element<HTMLUListElement>('homelab-addon-failures'),
+        updates: element('homelab-addon-updates'),
+        updateLink: element<HTMLAnchorElement>('homelab-addon-updates-link'),
+        updateMessage: element('homelab-addon-updates-message'),
+        updateReview: element<HTMLAnchorElement>('homelab-addon-updates-review'),
         links: element('homelab-addon-links'),
     }
 
@@ -227,6 +242,7 @@ function renderConfig(view: HomelabView, config: HomelabConfig): void {
     if (!config.statusUrl) {
         view.failures.replaceChildren()
         view.failures.hidden = true
+        hideUpdates(view)
     }
 }
 
@@ -269,13 +285,14 @@ function renderLinks(container: HTMLElement, config: HomelabConfig): void {
     container.hidden = config.links.length === 0
 }
 
-function renderChecking(view: HomelabView, cache?: HomelabStatusCache): void {
+function renderChecking(view: HomelabView, cache: HomelabStatusCache | undefined, config: HomelabConfig): void {
     view.root.dataset.state = 'checking'
     view.root.dataset.stale = cache ? 'true' : 'false'
     view.message.textContent = 'Checking status'
     setMeta(view.meta, cache ? `Last reached ${formatAge(cache.fetchedAt)}` : '', cache?.fetchedAt)
     view.failures.replaceChildren()
     view.failures.hidden = true
+    renderUpdates(view, cache?.status.updates, config, Boolean(cache))
 }
 
 function renderLiveStatus(
@@ -302,9 +319,10 @@ function renderLiveStatus(
     const generatedAt = status.generatedAt ? Date.parse(status.generatedAt) : fetchedAt
     setMeta(view.meta, stale ? `Generated ${formatAge(generatedAt)}` : 'Updated just now', generatedAt)
     renderFailures(view.failures, issues)
+    renderUpdates(view, status.updates, config, stale)
 }
 
-function renderUnavailable(view: HomelabView, cache?: HomelabStatusCache): void {
+function renderUnavailable(view: HomelabView, cache: HomelabStatusCache | undefined, config: HomelabConfig): void {
     view.root.dataset.state = 'unavailable'
     view.root.dataset.stale = cache ? 'true' : 'false'
     view.message.textContent = 'Homelab unavailable'
@@ -312,11 +330,62 @@ function renderUnavailable(view: HomelabView, cache?: HomelabStatusCache): void 
     if (cache) {
         setMeta(view.meta, `Last reached ${formatAge(cache.fetchedAt)}`, cache.fetchedAt)
         renderFailures(view.failures, cache.status.checks.filter(({ state }) => state !== 'healthy'))
+        renderUpdates(view, cache.status.updates, config, true)
     } else {
         setMeta(view.meta, 'No cached status')
         view.failures.replaceChildren()
         view.failures.hidden = true
+        hideUpdates(view)
     }
+}
+
+function renderUpdates(
+    view: HomelabView,
+    updates: HomelabStatus['updates'],
+    config: HomelabConfig,
+    stale: boolean,
+): void {
+    if (!updates || updates.available === 0) {
+        hideUpdates(view)
+        return
+    }
+
+    view.updates.hidden = false
+    view.updates.dataset.stale = stale.toString()
+    view.updateMessage.textContent = updates.available === 1 ? '1 update available' : `${updates.available} updates available`
+    view.updateLink.href = updates.href
+    view.updateLink.title = updates.checkedAt
+        ? `Open WUD · checked ${formatAge(Date.parse(updates.checkedAt))}`
+        : 'Open WUD'
+    setTarget(view.updateLink, config.openInNewTab)
+
+    if (updates.reviewHref) {
+        view.updateReview.hidden = false
+        view.updateReview.href = updates.reviewHref
+        view.updateReview.title = 'Open Renovate Dependency Dashboard'
+        setTarget(view.updateReview, config.openInNewTab)
+    } else {
+        view.updateReview.hidden = true
+        view.updateReview.removeAttribute('href')
+        view.updateReview.removeAttribute('target')
+        view.updateReview.removeAttribute('rel')
+        view.updateReview.removeAttribute('title')
+    }
+}
+
+function hideUpdates(view: HomelabView): void {
+    view.updates.hidden = true
+    view.updates.removeAttribute('data-stale')
+    view.updateMessage.textContent = ''
+    view.updateLink.removeAttribute('href')
+    view.updateLink.removeAttribute('target')
+    view.updateLink.removeAttribute('rel')
+    view.updateLink.removeAttribute('title')
+    view.updateReview.hidden = true
+    view.updateReview.removeAttribute('href')
+    view.updateReview.removeAttribute('target')
+    view.updateReview.removeAttribute('rel')
+    view.updateReview.removeAttribute('title')
 }
 
 function renderFailures(container: HTMLUListElement, checks: HomelabCheck[]): void {
