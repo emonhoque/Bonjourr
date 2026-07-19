@@ -1,0 +1,91 @@
+#homelab-addon-updates {
+    display: flex;
+    align-items: stretch;
+    width: 100%;
+    max-width: 32rem;
+    min-height: 2.45rem;
+    border: 1px solid var(--homelab-border);
+    border-radius: 0.9rem;
+    overflow: hidden;
+    color: inherit;
+    background-color: var(--homelab-surface);
+    box-shadow: 0 0.4rem 1.5rem rgb(0 0 0 / 0.15);
+    backdrop-filter: blur(1.4rem);
+    -webkit-backdrop-filter: blur(1.4rem);
+    box-sizing: border-box;
+    pointer-events: auto;
+}
+
+#homelab-addon-updates[hidden] {
+    display: none;
+}
+
+#homelab-addon-updates[data-stale='true'] {
+    border-style: dashed;
+    opacity: 0.82;
+}
+
+#homelab-addon-updates-link,
+#homelab-addon-updates-review {
+    display: inline-flex;
+    align-items: center;
+    color: inherit;
+    text-decoration: none;
+}
+
+#homelab-addon-updates-link {
+    flex: 1;
+    min-width: 0;
+    gap: 0.55rem;
+    padding: 0.55rem 0.75rem;
+}
+
+#homelab-addon-updates-link:hover,
+#homelab-addon-updates-review:hover {
+    background-color: rgb(255 255 255 / 0.08);
+}
+
+#homelab-addon-updates-icon {
+    display: inline-grid;
+    flex: 0 0 auto;
+    width: 1.45rem;
+    height: 1.45rem;
+    border-radius: 50%;
+    place-items: center;
+    color: var(--homelab-warning);
+    font-size: 1.05em;
+    font-weight: 700;
+    background-color: rgb(255 209 102 / 0.13);
+}
+
+#homelab-addon-updates-message {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+#homelab-addon-updates-review {
+    flex: 0 0 auto;
+    padding: 0.55rem 0.75rem;
+    border-left: 1px solid var(--homelab-border);
+    color: var(--homelab-muted);
+    font-size: 0.82em;
+    font-weight: 600;
+}
+
+#homelab-addon-updates-review[hidden] {
+    display: none;
+}
+
+@media screen and (max-width: 600px) {
+    #homelab-addon-updates {
+        max-width: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #homelab-addon-updates-link,
+    #homelab-addon-updates-review {
+        transition: none;
+    }
+}
